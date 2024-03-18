@@ -3,6 +3,8 @@
 #include <cmath>
 #include <random>
 #include <string>
+#include <algorithm>
+#include <ctime>
 namespace mhe {
     struct Point {
         double x;
@@ -54,11 +56,8 @@ namespace mhe {
         for (auto i = 0; i < solution.size()-1; i++){
             distance += distances[solution[i]][solution[i+1]];
         }
-        std::cout << "Wartosc funkcji celu dla " << drawSolution(solution) << ": " << distance << std::endl;
         return distance;
     }
-
-
 
     void drawDistances(const std::vector<std::vector<double>>& distances){
         for (const auto& row : distances) {
@@ -69,6 +68,17 @@ namespace mhe {
         }
     }
 
+    auto permute(const std::vector<int>& vector) -> std::vector<std::vector<int>>{
+        std::vector<std::vector<int>> set_of_solutions;
+        for(int i = 0; i < vector.size()-1; i++){
+            for(int j = i+1; j<vector.size(); j++){
+                auto v = vector;
+                std::swap(v[i],v[j]);
+                set_of_solutions.push_back(v);
+            }
+        }
+        return set_of_solutions;
+    }
 }
 //rozwiązanie algorytmem wspinaczkowym
 namespace wsp{
@@ -86,14 +96,16 @@ namespace wsp{
         for (int i = 1; i < size; i++){
            vector.push_back(i);
         }
+        std::mt19937 rng(std::time(nullptr));
+        std::shuffle(vector.begin(), vector.end(), rng);
         return vector;
     }
 
-    auto solve_random(const std::vector<std::vector<double>>& distances) -> std::vector<int>{
+    auto solve_random(const std::vector<std::vector<double>>& distances, int  max_iterations = 10000) -> std::vector<int>{
         auto solution = getVector(int(distances.size()));
         double best_value = mhe::target(solution,distances);
         auto best_solution = solution;
-        while(true){
+        for(int i = 0; i < max_iterations; i++){
             solution = change_random(solution);
             double value = mhe::target(solution, distances);
             if(value == best_value) break;
@@ -102,7 +114,36 @@ namespace wsp{
                 best_solution = solution;
             }
         }
-        std::cout << "Best solution: " << mhe::drawSolution(best_solution) << " with value: " << best_value << std::endl;
+        std::cout << "Best solution (random method): " << mhe::drawSolution(best_solution) << " with value: " << best_value << std::endl;
+        return best_solution;
+    }
+
+    auto get_best_solution(const std::vector<int>& solution, const std::vector<std::vector<double>>& distances)->std::vector<int>{
+        auto set = mhe::permute(solution);
+        auto best_value = mhe::target(solution, distances);
+        auto best_solution = solution;
+        for(const auto & i : set){
+            double tmp_val = mhe::target(i,distances);
+            if(tmp_val < best_value){
+                best_solution = i;
+                best_value = tmp_val;
+            }
+        }
+        if(solution==best_solution) return {-1};
+        return best_solution;
+    }
+
+    auto solve(const std::vector<std::vector<double>>& distances) -> std::vector<int>{
+        auto solution = getVector(int(distances.size()));
+        double best_value = mhe::target(solution,distances);
+        auto best_solution = solution;
+        for(;;){
+            solution = get_best_solution(solution, distances);
+            if(solution[0]==-1) break;
+            best_solution = solution;
+            std::cout << ".";
+        }
+        std::cout << "Best solution (best neighbour): " << mhe::drawSolution(best_solution) << " with value: " << best_value << std::endl;
         return best_solution;
     }
 }
@@ -110,9 +151,8 @@ namespace wsp{
 
 auto main() -> int{
     using namespace mhe;
-    auto dis_matrix = distanceMatrix(generateRandomPoints(5));
-    drawDistances(dis_matrix);
+    auto dis_matrix = distanceMatrix(generateRandomPoints(200));
     wsp::solve_random(dis_matrix);
+    wsp::solve(dis_matrix);
     return 0;
 }
-
