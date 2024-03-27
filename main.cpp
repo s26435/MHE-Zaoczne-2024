@@ -238,10 +238,35 @@ namespace tabu{
     }
 }
 
+namespace ann{
+
+    std::vector<int> solve(mhe::DistanceMatrix distances, double initial_temperature=25, int max_iterations = 1000){
+        auto s = mhe::generateRandomSolution(distances.size());
+        std::vector<int> best_s = s;
+        auto best_val = distances.cost(s);
+        std::random_device rd;
+        std::uniform_int_distribution<> dis(0, 1);
+        double temperature;
+        for(int i = 0; i < max_iterations; i++){
+            temperature = initial_temperature * (1 - static_cast<double>(i + 1) / max_iterations);
+            auto news = climb::getRandomNeighbor(s);
+            auto curr_val = distances.cost(news);
+            if(curr_val<best_val||std::exp((best_val - curr_val) / temperature)>dis(rd)){
+                s = news;
+                if(distances.cost(s)<distances.cost(best_s)) best_s = s;
+            }
+        }
+        return best_s;
+    }
+
+
+}
+
+
 
 auto main() -> int{
     using namespace std;
-    const unsigned int num_cities = 7;
+    const unsigned int num_cities = 6;
     auto dis = mhe::DistanceMatrix(mhe::generateRandomPoints(num_cities));
     dis.print();
 
@@ -264,5 +289,10 @@ auto main() -> int{
     cout << "Tabu algorithm best solution: ";
     mhe::drawSolution(tabu_sol);
     cout << "with cost: " << dis.cost(tabu_sol) << endl;
+
+    auto ann_sol = ann::solve(dis);
+    cout << "Tabu algorithm best solution: ";
+    mhe::drawSolution(ann_sol);
+    cout << "with cost: " << dis.cost(ann_sol) << endl;
     return 0;
 }
