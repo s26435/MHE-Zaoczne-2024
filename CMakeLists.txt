@@ -3,4 +3,5 @@ project(MHEZaoczne)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(MHEZaoczne main.cpp)
+add_executable(MHEZaoczne main.cpp
+        backup.cpp)
