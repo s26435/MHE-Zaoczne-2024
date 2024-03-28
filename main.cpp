@@ -7,6 +7,9 @@
 #include <algorithm>
 //#include <ctime>
 #include <iomanip>
+#include <unordered_map>
+#include <unordered_set>
+#include <map>
 
 namespace mhe {
     struct Point {
@@ -30,15 +33,12 @@ namespace mhe {
             }
             this->distanceMatrix = distances;
         }
-
         explicit DistanceMatrix(std::vector<std::vector<double>> distances){
             this->distanceMatrix = std::move(distances);
         }
-
         DistanceMatrix(){
             this->distanceMatrix = {{0, 1, 1}, {1, 0, 1}, {1,1,0}};
         }
-
         void print(int precision = 5){
             for (const auto& row : distanceMatrix) {
                 std::cout << std::fixed << std::setprecision(precision);
@@ -48,11 +48,9 @@ namespace mhe {
                 std::cout << "\n";
             }
         }
-
         double getDistance(int x, int y){
             return this->distanceMatrix[x-1][y-1];
         }
-
         //metoda celu
         [[nodiscard]]double cost(const std::vector<int>& solution){
             double cost = 0.0;
@@ -223,7 +221,7 @@ namespace tabu{
         for(int i = 0; i < max_iter; i++){
             auto neighbors = mhe::getNeighbors(best_candidate);
             double best_candidate_val = 0.0;
-            for(auto candidate : neighbors){
+            for(const auto& candidate : neighbors){
                 if(std::find(tabu_list.begin(), tabu_list.end(), candidate)==tabu_list.end()){
                     best_candidate = candidate;
                     best_candidate_val = distances.cost(best_candidate);
@@ -239,7 +237,6 @@ namespace tabu{
 }
 
 namespace ann{
-
     std::vector<int> solve(mhe::DistanceMatrix distances, double initial_temperature=25, int max_iterations = 1000){
         auto s = mhe::generateRandomSolution(distances.size());
         std::vector<int> best_s = s;
@@ -258,41 +255,100 @@ namespace ann{
         }
         return best_s;
     }
-
-
 }
 
+namespace gen {
+    //// CROSSOVERS
+    // PMX https://www.redalyc.org/pdf/2652/265224466006.pdf strona 50-51
+    std::vector<int> partiallyMappedCrossover(std::vector<int> parent1, std::vector<int> parent2) {
+        using namespace std;
+        if (parent1.size() != parent2.size()) throw std::invalid_argument("Rodzice musza miec taka sama dlugosc!");
+        std::random_device rd;
+        std::uniform_int_distribution<> dis(0, int(parent1.size()) - 1);
+        auto a = dis(rd);
+        auto b = dis(rd);
+        while (a == b) b = dis(rd);
+        if (a > b) std::swap(a, b);
+        std::vector<int> child(parent1.size());
+        std::unordered_set<int> visited;
+        for (int i = a; i <= b; ++i) {
+            child[i] = parent2[i];
+            visited.insert(parent2[i]);
+        }
+        for (int i = 0; i < parent1.size(); ++i) {
+            if (i >= a && i <= b) continue;
+            int temp = parent1[i];
+            while (visited.find(temp) != visited.end()) {
+                temp = parent1[temp];
+            }
+            child[i] = temp;
+            visited.insert(temp);
+        }
+        return child;
+    }
 
+    //OX1
+    std::vector<int> orderCrossover(std::vector<int> parent1, std::vector<int> parent2){
+        if (parent1.size() != parent2.size()) throw std::invalid_argument("Rodzice musza miec taka sama dlugosc!");
+        std::vector<int> child(parent1.size());
+        for(auto x : child) x = 0;
+        std::map<int,int> missing;
+        std::random_device rd;
+        std::uniform_int_distribution<> dis(0, int(parent1.size()) - 1);
+        auto a = dis(rd);
+        auto b = dis(rd);
+        while (a == b) b = dis(rd);
+        if (a > b) std::swap(a, b);
+        for(int i = 0; i < parent1.size(); i++){
+            if(i>=a&&i<=b) child[i] = parent1[i];
+            else missing[*std::find(parent1.begin(), parent1.end(), parent2[i])] = parent1[i];
+        }
+        for(int i = 0; i < parent1.size(); i++){
+            if(child[i]==0) {
+                int temp = missing.begin()->first;
+                child[i] = missing[temp];
+                missing.erase(temp);
+            }
+        }
+        return child;
+    }
+}
 
-auto main() -> int{
-    using namespace std;
-    const unsigned int num_cities = 6;
-    auto dis = mhe::DistanceMatrix(mhe::generateRandomPoints(num_cities));
-    dis.print();
+auto main() -> int {
+        using namespace std;
+        const unsigned int num_cities = 6;
+        auto dis = mhe::DistanceMatrix(mhe::generateRandomPoints(num_cities));
+        dis.print();
 
-    auto brute_sol= brute::solve(dis);
-    cout << "Bruteforce best solution: ";
-    mhe::drawSolution(brute_sol);
-    cout << "with cost: " << dis.cost(brute_sol) << endl;
-
-    auto climb_sol = climb::solve(dis);
-    cout << "Climb algorithm (deter. ver.) best solution: ";
-    mhe::drawSolution(climb_sol);
-    cout << "with cost: " << dis.cost(climb_sol) << endl;
-
-    auto rand_climb_sol = climb::solveRandom(dis);
-    cout << "Climb algorithm (random ver.) best solution: ";
-    mhe::drawSolution(rand_climb_sol);
-    cout << "with cost: " << dis.cost(rand_climb_sol) << endl;
-
-    auto tabu_sol = tabu::solve(dis);
-    cout << "Tabu algorithm best solution: ";
-    mhe::drawSolution(tabu_sol);
-    cout << "with cost: " << dis.cost(tabu_sol) << endl;
-
-    auto ann_sol = ann::solve(dis);
-    cout << "Tabu algorithm best solution: ";
-    mhe::drawSolution(ann_sol);
-    cout << "with cost: " << dis.cost(ann_sol) << endl;
-    return 0;
+//    auto brute_sol= brute::solve(dis);
+//    cout << "Bruteforce best solution: ";
+//    mhe::drawSolution(brute_sol);
+//    cout << "with cost: " << dis.cost(brute_sol) << endl;
+//
+//    auto climb_sol = climb::solve(dis);
+//    cout << "Climb algorithm (deter. ver.) best solution: ";
+//    mhe::drawSolution(climb_sol);
+//    cout << "with cost: " << dis.cost(climb_sol) << endl;
+//
+//    auto rand_climb_sol = climb::solveRandom(dis);
+//    cout << "Climb algorithm (random ver.) best solution: ";
+//    mhe::drawSolution(rand_climb_sol);
+//    cout << "with cost: " << dis.cost(rand_climb_sol) << endl;
+//
+//    auto tabu_sol = tabu::solve(dis);
+//    cout << "Tabu algorithm best solution: ";
+//    mhe::drawSolution(tabu_sol);
+//    cout << "with cost: " << dis.cost(tabu_sol) << endl;
+//
+//    auto ann_sol = ann::solve(dis);
+//    cout << "Tabu algorithm best solution: ";
+//    mhe::drawSolution(ann_sol);
+//    cout << "with cost: " << dis.cost(ann_sol) << endl;
+        try {
+            mhe::drawSolution(gen::orderCrossover({1, 2, 3, 4, 5, 6, 7, 8, 9}, {9, 3, 7, 8, 2, 6, 5, 1,4}));
+        }
+        catch (std::invalid_argument &e){
+            std::cout << e.what();
+        }
+        return 0;
 }
