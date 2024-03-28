@@ -3,20 +3,19 @@
 #include <iostream>
 #include <cmath>
 #include <random>
-//#include <string>
 #include <algorithm>
-//#include <ctime>
 #include <iomanip>
 #include <unordered_map>
 #include <unordered_set>
 #include <map>
+
+#define SEED 42
 
 namespace mhe {
     struct Point {
         double x;
         double y;
     };
-
     class DistanceMatrix{
         std::vector<std::vector<double>> distanceMatrix;
         static double distance(const Point &p1, const Point &p2) {
@@ -65,7 +64,7 @@ namespace mhe {
         }
     };
 
-    [[nodiscard]]std::vector<Point> generateRandomPoints(unsigned int num_points, int gen_seed = 42) {
+    [[nodiscard]]std::vector<Point> generateRandomPoints(unsigned int num_points, int gen_seed = SEED) {
         std::random_device rd;
         std::mt19937 gen(gen_seed);
         std::uniform_real_distribution<> dis(0.0, 1.0);
@@ -99,7 +98,7 @@ namespace mhe {
         return set_of_solutions;
     }
     //generowanie losowego rozwiązania
-    std::vector<int> generateRandomSolution(int size, int gen_seed=42){
+    std::vector<int> generateRandomSolution(int size, int gen_seed=SEED){
         std::vector<int> result;
         std::random_device rd;
         std::mt19937 gen(gen_seed);
@@ -312,6 +311,44 @@ namespace gen {
         }
         return child;
     }
+    //// MUTACJE
+    // https://en.wikipedia.org/wiki/Mutation_(genetic_algorithm)
+    // mutacja rotacji w prawo
+    std::vector<int> rotation(std::vector<int> solution){
+        std::random_device rd;
+        std::uniform_int_distribution<> dis(0, int(solution.size()) - 1);
+        std::uniform_int_distribution<> k(0, int(solution.size()));
+        int a = dis(rd);
+        int b = dis(rd);
+        int c = k(rd);
+        while (a == b) b = dis(rd);
+        if (a > b) std::swap(a, b);
+        std::vector<int> mutated(solution.size());
+        std::vector<int> missing;
+        for(int i = 0; i < solution.size(); i++){
+            if(i>=a&&i<=b) mutated[i] = solution[i];
+            else {
+                missing.push_back(solution[i]);
+                mutated[i] = 0;
+            }
+        }
+        std::vector<int> rotated(missing.size());
+        for (int i = 0; i < missing.size(); ++i) {
+            rotated[(i + c) % missing.size()] = missing[i];
+        }
+        int ite = 0;
+        for(int i = 0; i < solution.size(); i++){
+            if(mutated[i]==0) {
+                mutated[i] = rotated[ite];
+                ite++;
+            }
+        }
+        return mutated;
+    }
+
+
+
+
 }
 
 auto main() -> int {
@@ -344,11 +381,6 @@ auto main() -> int {
 //    cout << "Tabu algorithm best solution: ";
 //    mhe::drawSolution(ann_sol);
 //    cout << "with cost: " << dis.cost(ann_sol) << endl;
-        try {
-            mhe::drawSolution(gen::orderCrossover({1, 2, 3, 4, 5, 6, 7, 8, 9}, {9, 3, 7, 8, 2, 6, 5, 1,4}));
-        }
-        catch (std::invalid_argument &e){
-            std::cout << e.what();
-        }
-        return 0;
+
+    return 0;
 }
