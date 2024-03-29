@@ -346,6 +346,50 @@ namespace gen {
         return mutated;
     }
 
+    // mutacja przez inwersję
+    std::vector<int> inversion(std::vector<int> solution){
+        std::random_device rd;
+        std::uniform_int_distribution<> dis(0, int(solution.size()) - 1);
+        std::uniform_int_distribution<> k(0, int(solution.size()));
+        int a = dis(rd);
+        int b = dis(rd);
+        int c = k(rd);
+        while (a == b) b = dis(rd);
+        if (a > b) std::swap(a, b);
+        std::vector<int> mutated(solution.size());
+        std::vector<int> missing;
+        for(int i = 0; i < solution.size(); i++){
+            if(i>=a&&i<=b) {
+                missing.push_back(solution[i]);
+                mutated[i] = 0;
+            }
+            else mutated[i] = solution[i];
+        }
+        for (int i = 0; i < missing.size()/2; ++i) {
+            std::swap(missing[i], missing[missing.size()-i-1]);
+        }
+        int ite = 0;
+        for(int i = 0; i < solution.size(); i++){
+            if(mutated[i]==0) {
+                mutated[i] = missing[ite];
+                ite++;
+            }
+        }
+        return mutated;
+    }
+    //// SELEKCJE
+    // turniej
+    std::vector<int> tournamentSelection(const std::vector<std::vector<int>>& population, mhe::DistanceMatrix distances ,int tournament_size){
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, population.size() - 1);
+        std::vector<int> best_solution = population[dis(gen)];
+        for(int i =0; i < tournament_size; i++){
+            std::vector<int> random_solution = population[dis(gen)];
+            if(distances.cost(random_solution)<distances.cost(best_solution)) best_solution = random_solution;
+        }
+        return best_solution;
+    }
 
 
 
@@ -381,6 +425,7 @@ auto main() -> int {
 //    cout << "Tabu algorithm best solution: ";
 //    mhe::drawSolution(ann_sol);
 //    cout << "with cost: " << dis.cost(ann_sol) << endl;
-
+    std::vector<std::vector<int>> pop = {{1,2,3, 4},{2,3,1,4}, {1,2,4,3}, {1,2,4,3}};
+    mhe::drawSolution(gen::tournamentSelection(pop,dis,4));
     return 0;
 }
