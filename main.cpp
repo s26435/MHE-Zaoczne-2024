@@ -11,6 +11,9 @@
 
 #define SEED 42
 
+
+
+
 namespace mhe {
     struct Point {
         double x;
@@ -376,6 +379,8 @@ namespace gen {
         return mutated;
     }
     //// SELEKCJE
+    //TODO przerobić na zwracanie dwóch rodziców
+
     // turniej
     std::vector<int> tournamentSelection(const std::vector<std::vector<int>>& population, mhe::DistanceMatrix distances ,int tournament_size){
         std::random_device rd;
@@ -405,6 +410,24 @@ namespace gen {
                 return individual;
             }
         }
+    }
+
+    std::vector<std::vector<int>> survive(std::vector<std::vector<int>> population, std::vector<int> gene){
+        ;
+    }
+
+
+    std::vector<int> solve(int population_size, mhe::DistanceMatrix distances){
+        std::vector<std::vector<int>> population;
+        for(int i =0;i < population_size; i++) population.push_back(mhe::generateRandomSolution(distances.size()));
+        int timer = 0;
+        do{
+            auto parent1 = rouletteWheelSelection(population, distances);
+            auto parent2 = rouletteWheelSelection(population, distances);
+            auto child = orderCrossover(parent1, parent2);
+            timer++;
+        } while (timer < 100);
+        return {};
     }
 }
 
