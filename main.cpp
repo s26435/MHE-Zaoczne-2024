@@ -290,7 +290,7 @@ namespace gen {
     std::vector<int> orderCrossover(std::vector<int> parent1, std::vector<int> parent2){
         if (parent1.size() != parent2.size()) throw std::invalid_argument("Rodzice musza miec taka sama dlugosc!");
         std::vector<int> child(parent1.size());
-        for(auto x : child) x = 0;
+        for([[maybe_unused]] auto x : child) x = 0;
         std::map<int,int> missing;
         std::random_device rd;
         std::uniform_int_distribution<> dis(0, int(parent1.size()) - 1);
@@ -350,10 +350,8 @@ namespace gen {
     std::vector<int> inversion(std::vector<int> solution){
         std::random_device rd;
         std::uniform_int_distribution<> dis(0, int(solution.size()) - 1);
-        std::uniform_int_distribution<> k(0, int(solution.size()));
         int a = dis(rd);
         int b = dis(rd);
-        int c = k(rd);
         while (a == b) b = dis(rd);
         if (a > b) std::swap(a, b);
         std::vector<int> mutated(solution.size());
@@ -382,17 +380,32 @@ namespace gen {
     std::vector<int> tournamentSelection(const std::vector<std::vector<int>>& population, mhe::DistanceMatrix distances ,int tournament_size){
         std::random_device rd;
         std::mt19937 gen(rd());
-        std::uniform_int_distribution<> dis(0, population.size() - 1);
+        std::uniform_int_distribution<> dis(0, int(population.size()) - 1);
         std::vector<int> best_solution = population[dis(gen)];
         for(int i =0; i < tournament_size; i++){
-            std::vector<int> random_solution = population[dis(gen)];
+            const std::vector<int>& random_solution = population[dis(gen)];
             if(distances.cost(random_solution)<distances.cost(best_solution)) best_solution = random_solution;
         }
         return best_solution;
     }
-
-
-
+    //ruletka
+    std::vector<int> rouletteWheelSelection(const std::vector<std::vector<int>>& population, mhe::DistanceMatrix distances) {
+        double totalFitness = 0;
+        for (const auto& individual : population) {
+            totalFitness += distances.cost(individual);
+        }
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution<> dis(0, totalFitness - 1);
+        double selectedPoint = dis(gen);
+        double cumulativeFitness = 0;
+        for (const auto& individual : population) {
+            cumulativeFitness += distances.cost(individual);
+            if (cumulativeFitness > selectedPoint) {
+                return individual;
+            }
+        }
+    }
 }
 
 auto main() -> int {
@@ -425,7 +438,5 @@ auto main() -> int {
 //    cout << "Tabu algorithm best solution: ";
 //    mhe::drawSolution(ann_sol);
 //    cout << "with cost: " << dis.cost(ann_sol) << endl;
-    std::vector<std::vector<int>> pop = {{1,2,3, 4},{2,3,1,4}, {1,2,4,3}, {1,2,4,3}};
-    mhe::drawSolution(gen::tournamentSelection(pop,dis,4));
     return 0;
 }
