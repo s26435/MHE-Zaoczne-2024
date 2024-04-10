@@ -5,8 +5,6 @@
 #include <random>
 #include <algorithm>
 #include <iomanip>
-#include <unordered_map>
-#include <unordered_set>
 #include <map>
 #include <chrono>
 
@@ -89,19 +87,18 @@ namespace mhe {
         std::cout << tekst << std::endl;
     }
 
-    //funkcja zwracająca sąsiadów rozwiązania
-    auto getNeighbors(const std::vector<int>& vector) -> std::vector<std::vector<int>>{
-        std::vector<std::vector<int>> set_of_solutions;
+    std::vector<std::vector<int>> getNeighbors(const std::vector<int>& vector){
+        std::vector<std::vector<int>> solutions;
         for(int i = 0; i < vector.size()-1; i++){
             for(int j = i+1; j<vector.size(); j++){
                 auto v = vector;
                 std::swap(v[i],v[j]);
-                set_of_solutions.push_back(v);
+                solutions.push_back(v);
             }
         }
-        return set_of_solutions;
+        return solutions;
     }
-    //generowanie losowego rozwiązania
+
     std::vector<int> generateRandomSolution(int size, int gen_seed=SEED){
         std::vector<int> result;
         std::random_device rd;
@@ -119,7 +116,6 @@ namespace mhe {
 
 }
 
-//algorytm pełnego przeglądu
 namespace brute{
     std::vector<std::vector<int>> generatePermutations(std::vector<int>& nums, int start) {
         std::vector<std::vector<int>> result;
@@ -161,7 +157,6 @@ namespace brute{
 
 }
 
-//algorytm wspinaczkowy
 namespace climb{
     std::vector<int> getBestNeighbor(const std::vector<int>& solution, mhe::DistanceMatrix distances){
         auto neighbors =  mhe::getNeighbors(solution);
@@ -186,7 +181,6 @@ namespace climb{
         return solution;
     }
 
-    //deterministyczna wersja
     std::vector<int> solve(mhe::DistanceMatrix distances, int loop_breaker = 1000){
         auto solution =  mhe::generateRandomSolution(distances.size());
         for(int i = 0; i < loop_breaker; i++){
@@ -197,8 +191,7 @@ namespace climb{
         return solution;
     }
 
-    //wersja z losowym somsiadem
-    auto solveRandom(mhe::DistanceMatrix distances, int  max_iterations = 10000) -> std::vector<int>{
+    std::vector<int> solveRandom(mhe::DistanceMatrix distances, int  max_iterations = 10000){
         auto solution = mhe::generateRandomSolution(int(distances.size()));
         double best_value = distances.cost(solution);
         auto best_solution = solution;
@@ -261,8 +254,7 @@ namespace ann{
 }
 
 namespace gen {
-    //// CROSSOVERS
-    //uniform crossover
+
     std::vector<int> uniformCrossover(std::vector<int> parent1, std::vector<int> parent2) {
         if (parent1.size() != parent2.size()) throw std::invalid_argument("Rodzice musza miec taka sama dlugosc!");
         double crossover_rate = 0.5;
@@ -277,7 +269,6 @@ namespace gen {
         return child;
     }
 
-    //OX1
     std::vector<int> orderCrossover(std::vector<int> parent1, std::vector<int> parent2){
         if (parent1.size() != parent2.size()) throw std::invalid_argument("Rodzice musza miec taka sama dlugosc!");
         std::vector<int> child(parent1.size());
@@ -302,9 +293,7 @@ namespace gen {
         }
         return child;
     }
-    //// MUTACJE
-    // https://en.wikipedia.org/wiki/Mutation_(genetic_algorithm)
-    // mutacja rotacji w prawo
+
     std::vector<int> rotation(std::vector<int> solution){
         std::random_device rd;
         std::uniform_int_distribution<> dis(0, int(solution.size()) - 1);
@@ -337,7 +326,6 @@ namespace gen {
         return mutated;
     }
 
-    // mutacja przez inwersję
     std::vector<int> inversion(std::vector<int> solution){
         std::random_device rd;
         std::uniform_int_distribution<> dis(0, int(solution.size()) - 1);
@@ -366,8 +354,7 @@ namespace gen {
         }
         return mutated;
     }
-    //// SELEKCJE
-    // turniej
+
     std::vector<int> tournamentSelection(const std::vector<std::vector<int>>& population, mhe::DistanceMatrix distances ){
         int tournament_size = 10;
         std::random_device rd;
@@ -380,7 +367,7 @@ namespace gen {
         }
         return best_solution;
     }
-    //ruletka
+
     std::vector<int> rouletteWheelSelection(const std::vector<std::vector<int>>& population, mhe::DistanceMatrix distances) {
         double totalFitness = 0;
         for (const auto& individual : population) {
@@ -439,7 +426,7 @@ namespace gen {
         int timer = 0;
         double temp_diff = 0;
         int counter=0;
-        double diff = 100000000;
+        double diff;
         while(timer < max_iterations){
             new_generation.push_back(population[getBest(population,distances)]);
             for(int i = 1; i <population_size; i++){
