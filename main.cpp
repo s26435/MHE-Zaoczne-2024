@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <map>
+#include <chrono>
 
 #define SEED 42
 
@@ -261,30 +262,17 @@ namespace ann{
 
 namespace gen {
     //// CROSSOVERS
-    // PMX https://www.redalyc.org/pdf/2652/265224466006.pdf strona 50-51
-    std::vector<int> partiallyMappedCrossover(std::vector<int> parent1, std::vector<int> parent2) {
-        using namespace std;
+    //uniform crossover
+    std::vector<int> uniformCrossover(std::vector<int> parent1, std::vector<int> parent2) {
         if (parent1.size() != parent2.size()) throw std::invalid_argument("Rodzice musza miec taka sama dlugosc!");
+        double crossover_rate = 0.5;
         std::random_device rd;
-        std::uniform_int_distribution<> dis(0, int(parent1.size()) - 1);
-        auto a = dis(rd);
-        auto b = dis(rd);
-        while (a == b) b = dis(rd);
-        if (a > b) std::swap(a, b);
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution<> dis(0.0, 1.0);
         std::vector<int> child(parent1.size());
-        std::unordered_set<int> visited;
-        for (int i = a; i <= b; ++i) {
-            child[i] = parent2[i];
-            visited.insert(parent2[i]);
-        }
-        for (int i = 0; i < parent1.size(); ++i) {
-            if (i >= a && i <= b) continue;
-            int temp = parent1[i];
-            while (visited.find(temp) != visited.end()) {
-                temp = parent1[temp];
-            }
-            child[i] = temp;
-            visited.insert(temp);
+        for (size_t i = 0; i < parent1.size(); ++i) {
+            if (dis(gen) < crossover_rate) child[i] = parent2[i];
+            else child[i] = parent1[i];
         }
         return child;
     }
@@ -379,10 +367,9 @@ namespace gen {
         return mutated;
     }
     //// SELEKCJE
-    //TODO przerobić na zwracanie dwóch rodziców
-
     // turniej
-    std::vector<int> tournamentSelection(const std::vector<std::vector<int>>& population, mhe::DistanceMatrix distances ,int tournament_size){
+    std::vector<int> tournamentSelection(const std::vector<std::vector<int>>& population, mhe::DistanceMatrix distances ){
+        int tournament_size = 10;
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_int_distribution<> dis(0, int(population.size()) - 1);
@@ -412,54 +399,100 @@ namespace gen {
         }
     }
 
-    std::vector<std::vector<int>> survive(std::vector<std::vector<int>> population, std::vector<int> gene){
-        ;
+    int getBest(const std::vector<std::vector<int>>& population, mhe::DistanceMatrix distanceMatrix){
+        int best = 0;
+        double best_val = distanceMatrix.cost(population[0]);
+        for(int i =0; i < population.size();i++){
+            auto cur_val = distanceMatrix.cost(population[i]);
+            if(best_val>cur_val){
+                best = i;
+                best_val = cur_val;
+            }
+        }
+        return best;
     }
 
 
-    std::vector<int> solve(int population_size, mhe::DistanceMatrix distances){
+    std::vector<int> solve(int population_size, mhe::DistanceMatrix distances,int threshold,int max_iterations,const std::vector<std::string>& flags, bool debug=false){
+        using namespace std;
+        std::vector<int> (*selectionFunction)(const std::vector<std::vector<int>>&, mhe::DistanceMatrix);
+        std::vector<int> (*mutationFunction)(std::vector<int>);
+        std::vector<int> (*crossoverFunction)(std::vector<int>,std::vector<int>);
+
+        if(max_iterations==-1) max_iterations = threshold*20;
+
+        if(flags[0] == "tournament") selectionFunction = tournamentSelection;
+        else if(flags[0]=="wheel") selectionFunction = rouletteWheelSelection;
+        else throw std::invalid_argument("Blad we flagach algorytmu genetycznego. Podaj poprawyny rodzaj funkcji selekcji.");
+
+        if(flags[1]=="inversion") mutationFunction = inversion;
+        else if(flags[1]=="rotation") mutationFunction = rotation;
+        else throw std::invalid_argument("Blad we flagach algorytmu genetycznego. Podaj poprawyny rodzaj funkcji mutacji.");
+
+        if(flags[2]=="order") crossoverFunction = orderCrossover;
+        else if(flags[2]=="uniform") crossoverFunction = uniformCrossover;
+        else throw std::invalid_argument("Blad we flagach algorytmu genetycznego. Podaj poprawyny rodzaj funkcji krzyzowania.");
+
         std::vector<std::vector<int>> population;
+        std::vector<std::vector<int>> new_generation;
         for(int i =0;i < population_size; i++) population.push_back(mhe::generateRandomSolution(distances.size()));
         int timer = 0;
-        do{
-            auto parent1 = rouletteWheelSelection(population, distances);
-            auto parent2 = rouletteWheelSelection(population, distances);
-            auto child = orderCrossover(parent1, parent2);
+        double temp_diff = 0;
+        int counter=0;
+        double diff = 100000000;
+        while(timer < max_iterations){
+            new_generation.push_back(population[getBest(population,distances)]);
+            for(int i = 1; i <population_size; i++){
+                auto parent1 = selectionFunction(population, distances);
+                auto parent2 = selectionFunction(population, distances);
+                auto child = mutationFunction(crossoverFunction(parent1, parent2));
+                if(distances.cost(parent2) < distances.cost(child)) new_generation.push_back(parent2);
+                else if(distances.cost(parent1) < distances.cost(child))  new_generation.push_back(parent1);
+                else new_generation.push_back(child);
+            }
+            population.clear();
+            population = new_generation;
+            new_generation.clear();
             timer++;
-        } while (timer < 100);
-        return {};
+            diff = distances.cost(population[getBest(population,distances)]);
+            if(temp_diff==diff) counter++;
+            else counter = 0;
+
+            if(timer%100==0&&debug) cout << timer << ": " << distances.cost(population[getBest(population,distances)]) << "\n";
+            temp_diff = diff;
+            if(counter >= threshold) break;
+        }
+        cout << "Iterations: " << timer <<  endl;
+        return population[getBest(population,distances)];
     }
+
+    void show_all(mhe::DistanceMatrix distanceMatrix){
+        using namespace std;
+        auto x = {"wheel","tournament"};
+        auto y = {"inversion", "rotation"};
+        auto z = {"uniform","order"};
+        for(auto i : x){
+            for(auto j : y){
+                for(auto k : z){
+                    cout << "Ga: " << i << " " << j << " "<< k << endl;
+                    auto start = std::chrono::high_resolution_clock::now();
+                    auto best = gen::solve(40, distanceMatrix, 10000, -1 ,{i,j,k}); //tournament, wheel; rotation, invertion; order, mapped
+                    auto end = std::chrono::high_resolution_clock::now();
+                    std::chrono::duration<double> duration = end-start;
+                    mhe::drawSolution(best);
+                    cout << "with cost :" << distanceMatrix.cost(best) << " in " << duration.count() << endl;
+                }
+            }
+        }
+    }
+
+
 }
 
 auto main() -> int {
-        using namespace std;
-        const unsigned int num_cities = 6;
-        auto dis = mhe::DistanceMatrix(mhe::generateRandomPoints(num_cities));
-        dis.print();
-
-//    auto brute_sol= brute::solve(dis);
-//    cout << "Bruteforce best solution: ";
-//    mhe::drawSolution(brute_sol);
-//    cout << "with cost: " << dis.cost(brute_sol) << endl;
-//
-//    auto climb_sol = climb::solve(dis);
-//    cout << "Climb algorithm (deter. ver.) best solution: ";
-//    mhe::drawSolution(climb_sol);
-//    cout << "with cost: " << dis.cost(climb_sol) << endl;
-//
-//    auto rand_climb_sol = climb::solveRandom(dis);
-//    cout << "Climb algorithm (random ver.) best solution: ";
-//    mhe::drawSolution(rand_climb_sol);
-//    cout << "with cost: " << dis.cost(rand_climb_sol) << endl;
-//
-//    auto tabu_sol = tabu::solve(dis);
-//    cout << "Tabu algorithm best solution: ";
-//    mhe::drawSolution(tabu_sol);
-//    cout << "with cost: " << dis.cost(tabu_sol) << endl;
-//
-//    auto ann_sol = ann::solve(dis);
-//    cout << "Tabu algorithm best solution: ";
-//    mhe::drawSolution(ann_sol);
-//    cout << "with cost: " << dis.cost(ann_sol) << endl;
+    using namespace std;
+    const unsigned int num_cities = 50;
+    auto dis = mhe::DistanceMatrix(mhe::generateRandomPoints(num_cities));
+    gen::show_all(dis);
     return 0;
 }
