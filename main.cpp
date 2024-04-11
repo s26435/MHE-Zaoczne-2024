@@ -10,9 +10,6 @@
 
 #define SEED 42
 
-
-
-
 namespace mhe {
     struct Point {
         double x;
@@ -52,7 +49,6 @@ namespace mhe {
         double getDistance(int x, int y){
             return this->distanceMatrix[x-1][y-1];
         }
-        //metoda celu
         [[nodiscard]]double cost(const std::vector<int>& solution){
             double cost = 0.0;
             for(int i = 0; i < solution.size()-1 ; i++){
@@ -210,7 +206,6 @@ namespace climb{
 
 namespace tabu{
     std::vector<int> solve(mhe::DistanceMatrix distances, int max_iter=1000, int max_tab_size=5){
-        //TODO cofanie sie do ostatniego punktu roboczego
         auto best_sol = mhe::generateRandomSolution(distances.size());
         auto best_candidate = best_sol;
         std::vector<std::vector<int>> tabu_list = {};
@@ -401,7 +396,6 @@ namespace gen {
 
 
     std::vector<int> solve(int population_size, mhe::DistanceMatrix distances,int threshold,int max_iterations,const std::vector<std::string>& flags, bool debug=false){
-        using namespace std;
         std::vector<int> (*selectionFunction)(const std::vector<std::vector<int>>&, mhe::DistanceMatrix);
         std::vector<int> (*mutationFunction)(std::vector<int>);
         std::vector<int> (*crossoverFunction)(std::vector<int>,std::vector<int>);
@@ -445,7 +439,7 @@ namespace gen {
             if(temp_diff==diff) counter++;
             else counter = 0;
 
-            if(timer%100==0&&debug) cout << timer << ": " << distances.cost(population[getBest(population,distances)]) << "\n";
+            if(timer%100==0&&debug) std::cout << timer << ": " << distances.cost(population[getBest(population,distances)]) << "\n";
             temp_diff = diff;
             if(counter >= threshold) break;
         }
