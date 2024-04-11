@@ -443,25 +443,24 @@ namespace gen {
             temp_diff = diff;
             if(counter >= threshold) break;
         }
-        cout << "Iterations: " << timer <<  endl;
+        std::cout << "Iterations: " << timer <<  std::endl;
         return population[getBest(population,distances)];
     }
 
     void show_all(mhe::DistanceMatrix distanceMatrix){
-        using namespace std;
         auto x = {"wheel","tournament"};
         auto y = {"inversion", "rotation"};
         auto z = {"uniform","order"};
         for(auto i : x){
             for(auto j : y){
                 for(auto k : z){
-                    cout << "Ga: " << i << " " << j << " "<< k << endl;
+                    std::cout << "Ga: " << i << " " << j << " "<< k << std::endl;
                     auto start = std::chrono::high_resolution_clock::now();
                     auto best = gen::solve(40, distanceMatrix, 10000, -1 ,{i,j,k}); //tournament, wheel; rotation, invertion; order, mapped
                     auto end = std::chrono::high_resolution_clock::now();
                     std::chrono::duration<double> duration = end-start;
                     mhe::drawSolution(best);
-                    cout << "with cost :" << distanceMatrix.cost(best) << " in " << duration.count() << endl;
+                    std::cout << "with cost :" << distanceMatrix.cost(best) << " in " << duration.count() << std::endl;
                 }
             }
         }
