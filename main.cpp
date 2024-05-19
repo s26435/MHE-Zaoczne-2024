@@ -249,18 +249,33 @@ namespace ann{
 }
 
 namespace gen {
-
     std::vector<int> uniformCrossover(std::vector<int> parent1, std::vector<int> parent2) {
-        if (parent1.size() != parent2.size()) throw std::invalid_argument("Rodzice musza miec taka sama dlugosc!");
-        double crossover_rate = 0.5;
+        if (parent1.size() != parent2.size()) {
+            throw std::invalid_argument("Rodzice musza miec taka sama dlugosc!");
+        }
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_real_distribution<> dis(0.0, 1.0);
-        std::vector<int> child(parent1.size());
+        std::vector<int> child(parent1.size(), -1);
+        std::vector<bool> chosen(parent1.size(), false);
+        double crossover_rate = 0.5;
         for (size_t i = 0; i < parent1.size(); ++i) {
-            if (dis(gen) < crossover_rate) child[i] = parent2[i];
-            else child[i] = parent1[i];
+            if (dis(gen) < crossover_rate) {
+                child[i] = parent1[i];
+                chosen[child[i] - 1] = true;
+            }
         }
+        size_t child_idx = 0;
+        for (const auto& city : parent2) {
+            if (!chosen[city - 1]) {
+                while (child[child_idx] != -1) {
+                    ++child_idx;
+                }
+                child[child_idx] = city;
+                chosen[city - 1] = true;
+            }
+        }
+
         return child;
     }
 
@@ -362,6 +377,7 @@ namespace gen {
         }
         return best_solution;
     }
+    //
 
     std::vector<int> rouletteWheelSelection(const std::vector<std::vector<int>>& population, mhe::DistanceMatrix distances) {
         double totalFitness = 0;
@@ -379,6 +395,7 @@ namespace gen {
                 return individual;
             }
         }
+        throw std::runtime_error("Selection failed: cumulative fitness did not cover selected point.");
     }
 
     int getBest(const std::vector<std::vector<int>>& population, mhe::DistanceMatrix distanceMatrix){
@@ -448,15 +465,15 @@ namespace gen {
     }
 
     void show_all(mhe::DistanceMatrix distanceMatrix){
-        auto x = {"wheel","tournament"};
+        auto x = {"wheel", "tournament"};
         auto y = {"inversion", "rotation"};
-        auto z = {"uniform","order"};
+        auto z = {"uniform", "order"};
         for(auto i : x){
             for(auto j : y){
                 for(auto k : z){
                     std::cout << "Ga: " << i << " " << j << " "<< k << std::endl;
                     auto start = std::chrono::high_resolution_clock::now();
-                    auto best = gen::solve(40, distanceMatrix, 10000, -1 ,{i,j,k}); //tournament, wheel; rotation, invertion; order, mapped
+                    auto best = gen::solve(40, distanceMatrix, 100, -1 ,{i,j,k}, true);
                     auto end = std::chrono::high_resolution_clock::now();
                     std::chrono::duration<double> duration = end-start;
                     mhe::drawSolution(best);
